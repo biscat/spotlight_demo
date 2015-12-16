@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CoreSpotlight
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -41,6 +42,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    func application(application: UIApplication, continueUserActivity userActivity: NSUserActivity, restorationHandler: ([AnyObject]?) -> Void) -> Bool {
+        if userActivity.activityType == CSSearchableItemActionType {
+            //this activity represents an item indexed using core spotlight, so restore the context related to the unique identifier
+            let uniqueIdentifier = userActivity.userInfo? [CSSearchableItemActivityIdentifier] as? String
+            print (uniqueIdentifier)
+            
+            let navigationController = self.window?.rootViewController as! UINavigationController
+            let viewController = navigationController.topViewController as! ViewController
+            viewController.restoreUserActivityState(userActivity)
+            
+        } else if userActivity.activityType == "com.fleetmatics.testSpotlight.cells" {   //this is search item created through user activity
+            let navigationController = self.window?.rootViewController as! UINavigationController
+            let viewController = navigationController.topViewController as! ViewController
+            viewController.restoreUserActivityState(userActivity)
+        }
+        return true
+    }
 
 }
 

@@ -8,6 +8,7 @@
 
 import UIKit
 import CoreSpotlight
+import MobileCoreServices
 
 struct cellObject {
     var mainTitle:String
@@ -23,24 +24,41 @@ struct cellObject {
 
 class ViewController: UIViewController {
     
-    let data:[cellObject] = [cellObject(mainTitle: "swift", subTitle: "20 Dec 2015", imageName: "swift"),
+    @IBOutlet weak var dataTable: UITableView!
+    
+    let data:[cellObject] = [
         cellObject(mainTitle: "books", subTitle: "19 Jan 2015", imageName: "books"),
-        cellObject(mainTitle: "python", subTitle: "20 Jul 2014", imageName: "python")];
+        cellObject(mainTitle: "python", subTitle: "20 Jul 2014", imageName: "python"),
+        cellObject(mainTitle: "swift", subTitle: "20 Dec 2015", imageName: "swift")];
+    
+    var dataToRestore: cellObject?
     
     override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        super.viewDidLoad()        
+        //if wanna index multiple items, use Core Spotlight API to create searchable items
         
-        //set up searchable activity
-        for  cellData in data {
-            let activity = NSUserActivity(activityType: "com.fleetmatics.testSpotlight.cells")
-            activity.userInfo = ["mainTitle":cellData.mainTitle, "subTitle":cellData.subTitle, "imageName":cellData.imageName]
-            activity.title = cellData.mainTitle
+        /*
+        var i = 0;
+        var items:[CSSearchableItem] = [];
+        for cellData in data {
+            let attributeSet = CSSearchableItemAttributeSet(itemContentType: kUTTypeData as String)
             
-            activity.eligibleForSearch = true
-            activity.eligibleForHandoff = true
+            attributeSet.title = cellData.mainTitle
+            attributeSet.contentDescription = cellData.subTitle
             
+            let item = CSSearchableItem(uniqueIdentifier: "\(i)", domainIdentifier: "cell " + "\(i)", attributeSet: attributeSet)
+            items.append(item)
+            i++
         }
+        
+        CSSearchableIndex.defaultSearchableIndex().indexSearchableItems(items, completionHandler: { (error) -> Void in
+            if error != nil {
+                print(error?.localizedDescription)
+            } else {
+                print("Item indexed")
+            }
+        })
+        */
     }
 
     override func didReceiveMemoryWarning() {
@@ -48,6 +66,47 @@ class ViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
 
+    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
+        if segue.identifier == "showDetail" {
+            if let indexPath = self.dataTable.indexPathForSelectedRow {
+                let object = data[indexPath.row] as cellObject
+                let controller = segue.destinationViewController as! DetailViewController
+                controller.data = object
+            } else {
+                //restore the activity
+                let controller = segue.destinationViewController as! DetailViewController
+                controller.data = self.dataToRestore
+            }
+        }
+    }
+    
+    override func restoreUserActivityState(activity: NSUserActivity) {
+        if let index = activity.userInfo?["kCSSearchableItemActivityIdentifier"] as? String{
+            let indexNum = Int(index)
+            let show = data[indexNum!]
+            self.dataToRestore = show
+            self.performSegueWithIdentifier("showDetail", sender: self)
+        } else if activity.activityType == "com.fleetmatics.testSpotlight.cells" {
+            self.dataToRestore = findDataByMainTitle(activity.title!)
+            self.performSegueWithIdentifier("showDetail", sender: self)
+        } else {
+            let alert = UIAlertController(title: "Error", message: "Error retrieving information from userInfo:\n\(activity.userInfo)", preferredStyle: .Alert)
+            alert.addAction(UIAlertAction(title: "Dismiss", style: .Cancel, handler: nil))
+            
+            self.presentViewController(alert, animated: true, completion: nil)
+        }
+    }
+
+    
+    func findDataByMainTitle(mainTitle: String) -> cellObject? {
+        for cellData in data {
+            if cellData.mainTitle == mainTitle {
+                return cellData
+            }
+        }
+        return nil
+    }
+    
 }
 
 extension ViewController : UITableViewDelegate, UITableViewDataSource {
